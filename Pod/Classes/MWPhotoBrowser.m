@@ -185,9 +185,15 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     
     // Swipe to dismiss
     if (_enableSwipeToDismiss) {
-        UISwipeGestureRecognizer *swipeGesture = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(doneButtonPressed:)];
-        swipeGesture.direction = UISwipeGestureRecognizerDirectionDown | UISwipeGestureRecognizerDirectionUp;
-        [self.view addGestureRecognizer:swipeGesture];
+        UISwipeGestureRecognizer *downSwipeGestureRecognizer = [[UISwipeGestureRecognizer alloc] initWithTarget:self
+                                                                                                         action:@selector(dismissFromSwipe:)];
+        UISwipeGestureRecognizer *upSwipeGestureRecognizer = [[UISwipeGestureRecognizer alloc] initWithTarget:self
+                                                                                                       action:@selector(dismissFromSwipe:)];
+        downSwipeGestureRecognizer.direction = UISwipeGestureRecognizerDirectionDown;
+        upSwipeGestureRecognizer.direction = UISwipeGestureRecognizerDirectionUp;
+
+        [self.view addGestureRecognizer:downSwipeGestureRecognizer];
+        [self.view addGestureRecognizer:upSwipeGestureRecognizer];
     }
     
 	// Super
@@ -1088,6 +1094,18 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 	NSUInteger previousCurrentPage = _currentPageIndex;
 	_currentPageIndex = index;
 	if (_currentPageIndex != previousCurrentPage) {
+        MWPhotoBrowserSwipeDirection swipeDirection = MWPhotoBrowserSwipeDirectionUndefined;
+
+        if (_currentPageIndex > previousCurrentPage) {
+            swipeDirection = MWPhotoBrowserSwipeDirectionLeft;
+        } else if (_currentPageIndex < previousCurrentPage) {
+            swipeDirection = MWPhotoBrowserSwipeDirectionRight;
+        }
+
+        if ([self.delegate respondsToSelector:@selector(photoBrowser:didSwipePhotoWithDirection:)]) {
+            [self.delegate photoBrowser:self didSwipePhotoWithDirection:swipeDirection];
+        }
+
         [self didStartViewingPageAtIndex:index];
     }
 	
@@ -1580,6 +1598,24 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 }
 
 #pragma mark - Misc
+
+- (void)dismissFromSwipe:(UISwipeGestureRecognizer *)swipeGestureRecognizer {
+    MWPhotoBrowserSwipeDirection swipeDirection = MWPhotoBrowserSwipeDirectionUndefined;
+
+    if (swipeGestureRecognizer.direction == UISwipeGestureRecognizerDirectionUp) {
+        swipeDirection = MWPhotoBrowserSwipeDirectionUp;
+    }
+
+    if (swipeGestureRecognizer.direction == UISwipeGestureRecognizerDirectionDown) {
+        swipeDirection = MWPhotoBrowserSwipeDirectionDown;
+    }
+
+    if ([self.delegate respondsToSelector:@selector(photoBrowser:didSwipePhotoWithDirection:)]) {
+        [self.delegate photoBrowser:self didSwipePhotoWithDirection:swipeDirection];
+    }
+
+    [self doneButtonPressed:swipeGestureRecognizer];
+}
 
 - (void)doneButtonPressed:(id)sender {
     // Only if we're modal and there's a done button
