@@ -18,6 +18,14 @@
 #define MWLog(x, ...)
 #endif
 
+typedef NS_ENUM(NSUInteger, MWPhotoBrowserSwipeDirection) {
+    MWPhotoBrowserSwipeDirectionUndefined,
+    MWPhotoBrowserSwipeDirectionLeft,
+    MWPhotoBrowserSwipeDirectionRight,
+    MWPhotoBrowserSwipeDirectionUp,
+    MWPhotoBrowserSwipeDirectionDown
+};
+
 @class MWPhotoBrowser;
 
 @protocol MWPhotoBrowserDelegate <NSObject>
@@ -35,6 +43,7 @@
 - (BOOL)photoBrowser:(MWPhotoBrowser *)photoBrowser isPhotoSelectedAtIndex:(NSUInteger)index;
 - (void)photoBrowser:(MWPhotoBrowser *)photoBrowser photoAtIndex:(NSUInteger)index selectedChanged:(BOOL)selected;
 - (void)photoBrowserDidFinishModalPresentation:(MWPhotoBrowser *)photoBrowser;
+- (void)photoBrowser:(MWPhotoBrowser *)photoBrowser didSwipePhotoWithDirection:(MWPhotoBrowserSwipeDirection)swipeDirection;
 
 @end
 
