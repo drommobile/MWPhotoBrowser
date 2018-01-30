@@ -17,6 +17,10 @@
 
 static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 
+@interface MWPhotoBrowser () <AVPlayerViewControllerDelegate>
+
+@end
+
 @implementation MWPhotoBrowser
 
 #pragma mark - Init
@@ -1273,6 +1277,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     
     _currentVideoPlayerViewController = [[AVPlayerViewController alloc] init];
     _currentVideoPlayerViewController.player = [AVPlayer playerWithURL:videoURL];
+    _currentVideoPlayerViewController.delegate = self;
     
     _currentVideoPlayerViewController.videoGravity = AVLayerVideoGravityResizeAspect;
     _currentVideoPlayerViewController.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
@@ -1281,11 +1286,18 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     // Observe ourselves so we can get it to use the crossfade transition
     [[NSNotificationCenter defaultCenter] removeObserver:_currentVideoPlayerViewController
                                                     name:AVPlayerItemDidPlayToEndTimeNotification
-                                                  object:_currentVideoPlayerViewController.player];
+                                                  object:_currentVideoPlayerViewController.player.currentItem];
+    [[NSNotificationCenter defaultCenter] removeObserver:_currentVideoPlayerViewController
+                                                    name:AVPlayerItemFailedToPlayToEndTimeNotification
+                                                  object:_currentVideoPlayerViewController.player.currentItem];
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(videoFinishedCallback:)
                                                  name:AVPlayerItemDidPlayToEndTimeNotification
-                                               object:_currentVideoPlayerViewController.player];
+                                               object:_currentVideoPlayerViewController.player.currentItem];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(videoFinishedWithErrorCallback:)
+                                                 name:AVPlayerItemFailedToPlayToEndTimeNotification
+                                               object:_currentVideoPlayerViewController.player.currentItem];
 
     // Show
     [self presentViewController:_currentVideoPlayerViewController animated:YES completion:^{
@@ -1299,27 +1311,38 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     // Remove observer
     [[NSNotificationCenter defaultCenter] removeObserver:self
                                                     name:AVPlayerItemDidPlayToEndTimeNotification
-                                                  object:_currentVideoPlayerViewController.player];
+                                                  object:_currentVideoPlayerViewController.player.currentItem];
+    [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                    name:AVPlayerItemFailedToPlayToEndTimeNotification
+                                                  object:_currentVideoPlayerViewController.player.currentItem];
     
     // Clear up
     [self clearCurrentVideo];
-    
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)videoFinishedWithErrorCallback:(NSNotification*)notification {
+    [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                    name:AVPlayerItemDidPlayToEndTimeNotification
+                                                  object:_currentVideoPlayerViewController.player.currentItem];
+    [[NSNotificationCenter defaultCenter] removeObserver:_currentVideoPlayerViewController
+                                                    name:AVPlayerItemFailedToPlayToEndTimeNotification
+                                                  object:_currentVideoPlayerViewController.player.currentItem];
     // Dismiss
-    BOOL error = [[[notification userInfo] objectForKey:AVPlayerItemFailedToPlayToEndTimeErrorKey] intValue] == AVPlayerItemFailedToPlayToEndTimeNotification;
-    if (error) {
-        // Error occured so dismiss with a delay incase error was immediate and we need to wait to dismiss the VC
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [self dismissViewControllerAnimated:YES completion:nil];
-        });
-    } else {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [self dismissViewControllerAnimated:YES completion:nil];
-    }
-    
+    });
+    NSLog(@"%@", [notification userInfo]);
+}
+
+- (void)playerViewControllerWillBeginDismissalTransition:(AVPlayerViewController *)playerViewController {
+    [self clearCurrentVideo];
 }
 
 - (void)clearCurrentVideo {
     [_currentVideoPlayerViewController.player pause];
     [_currentVideoLoadingIndicator removeFromSuperview];
+    _currentVideoPlayerViewController.delegate = nil;
     _currentVideoPlayerViewController = nil;
     _currentVideoLoadingIndicator = nil;
     [[self pageDisplayedAtIndex:_currentVideoIndex] playButton].hidden = NO;
