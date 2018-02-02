@@ -21,7 +21,9 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 
 @end
 
-@implementation MWPhotoBrowser
+@implementation MWPhotoBrowser {
+    BOOL _isPlaying;
+}
 
 #pragma mark - Init
 
@@ -372,6 +374,10 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
         if (_startOnGrid) {
             [self showGrid:NO];
         }
+    }
+    
+    if (_isPlaying) {
+        [self videoFinishedCallback:nil];
     }
 
     // If rotation occured while we're presenting a modal
@@ -1282,6 +1288,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     _currentVideoPlayerViewController.videoGravity = AVLayerVideoGravityResizeAspect;
     _currentVideoPlayerViewController.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
     
+    _isPlaying = YES;
     // Remove the movie player view controller from the "playback did finish" notification observers
     // Observe ourselves so we can get it to use the crossfade transition
     [[NSNotificationCenter defaultCenter] removeObserver:_currentVideoPlayerViewController
@@ -1318,7 +1325,10 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     
     // Clear up
     [self clearCurrentVideo];
-    [self dismissViewControllerAnimated:YES completion:nil];
+    if (notification) {
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }
+    _isPlaying = NO;
 }
 
 - (void)videoFinishedWithErrorCallback:(NSNotification*)notification {
@@ -1333,6 +1343,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
         [self dismissViewControllerAnimated:YES completion:nil];
     });
     NSLog(@"%@", [notification userInfo]);
+    _isPlaying = NO;
 }
 
 - (void)playerViewControllerWillBeginDismissalTransition:(AVPlayerViewController *)playerViewController {
