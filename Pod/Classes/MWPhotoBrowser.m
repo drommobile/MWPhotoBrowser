@@ -1281,7 +1281,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 
     // Setup player
     
-    _currentVideoPlayerViewController = [[AVPlayerViewController alloc] init];
+    _currentVideoPlayerViewController = [AVPlayerViewController new];
     _currentVideoPlayerViewController.player = [AVPlayer playerWithURL:videoURL];
     _currentVideoPlayerViewController.delegate = self;
     
@@ -1342,7 +1342,6 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [self dismissViewControllerAnimated:YES completion:nil];
     });
-    NSLog(@"%@", [notification userInfo]);
     _isPlaying = NO;
 }
 
