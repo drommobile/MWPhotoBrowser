@@ -629,7 +629,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     if (self.cyclicPaging && [self numberOfPhotos] > 1) {
         dataIndex -= 1;
         // Fix index of edge images for cyclic paging
-        if (index >= _photos.count) {
+        if (dataIndex >= (NSInteger)_photos.count) {
             dataIndex = 0;
         }
         if (dataIndex < 0) {
@@ -640,7 +640,8 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 }
 
 - (NSUInteger)pageIndexFromDataIndex:(NSUInteger)index {
-    return index + (self.cyclicPaging && [self numberOfPhotos] > 1) ? 1 : 0;;
+    NSUInteger cyclicPatch = (self.cyclicPaging && [self numberOfPhotos] > 1) ? 1 : 0;
+    return index + cyclicPatch;
 }
 
 - (NSUInteger)currentIndex {
@@ -1205,9 +1206,13 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 }
 
 - (void)jumpToPageAtIndex:(NSInteger)index animated:(BOOL)animated {
-	
-	// Change page
-	if (index < [self numberOfPages]) {
+    NSUInteger pageCount = [self numberOfPages];
+
+    // Change page
+	if (index < pageCount) {
+        if (self.cyclicPaging && !animated) {
+            index = [self pageIndexFromDataIndex:[self dataIndexFromPageIndex:index]];
+        }
 		CGRect pageFrame = [self frameForPageAtIndex:index];
         [_pagingScrollView setContentOffset:CGPointMake(pageFrame.origin.x - PADDING, 0) animated:animated];
 		[self updateNavigation];
