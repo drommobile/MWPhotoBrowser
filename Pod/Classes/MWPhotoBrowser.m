@@ -991,6 +991,9 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     if (index > 0) {
         // Release anything < index - 1
         for (i = 0; i < index-1; i++) {
+            if (self.cyclicPaging && i == 0) {
+                continue; //don't clear edge pages in cyclic mode
+            }
             NSUInteger photoIndex = [self dataIndexFromPageIndex:i];
             id photo = [_photos objectAtIndex:photoIndex];
             if (photo != [NSNull null]) {
@@ -1003,6 +1006,9 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     if (index < pagesCount - 1) {
         // Release anything > index + 1
         for (i = index + 2; i < pagesCount; i++) {
+            if (self.cyclicPaging && i == pagesCount - 1) {
+                continue; //don't clear edge pages in cyclic mode
+            }
             NSUInteger photoIndex = [self dataIndexFromPageIndex:i];
             id photo = [_photos objectAtIndex:photoIndex];
             if (photo != [NSNull null]) {
