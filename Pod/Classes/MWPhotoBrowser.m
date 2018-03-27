@@ -1158,7 +1158,12 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
 	// Update nav when page changes
-	[self updateNavigation];
+    NSUInteger pageIndex = [self pageIndexFromDataIndex:[self dataIndexFromPageIndex:_currentPageIndex]];
+    if (_currentPageIndex != pageIndex) {
+        [self jumpToPageAtIndex:pageIndex animated:NO];
+    } else {
+        [self updateNavigation];
+    }
 }
 
 #pragma mark - Navigation
