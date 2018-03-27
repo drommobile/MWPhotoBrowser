@@ -1262,19 +1262,19 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 
 - (void)playButtonTapped:(id)sender {
     // Ignore if we're already playing a video
-    if (_currentVideoIndex != NSIntegerMax) {
+    if (_currentVideoIndex != NSUIntegerMax) {
         return;
     }
-    NSInteger index = [self indexForPlayButton:sender];
-    if (index != NSIntegerMax) {
+    NSUInteger index = [self indexForPlayButton:sender];
+    if (index != NSUIntegerMax) {
         if (!_currentVideoPlayerViewController) {
             [self playVideoAtIndex:[self dataIndexFromPageIndex:index]];
         }
     }
 }
 
-- (NSInteger)indexForPlayButton:(UIView *)playButton {
-    NSInteger index = NSIntegerMax;
+- (NSUInteger)indexForPlayButton:(UIView *)playButton {
+    NSUInteger index = NSUIntegerMax;
     for (MWZoomingScrollView *page in _visiblePages) {
         if (page.playButton == playButton) {
             index = page.index;
@@ -1414,7 +1414,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 }
 
 - (void)positionVideoLoadingIndicator {
-    if (_currentVideoLoadingIndicator && _currentVideoIndex != NSIntegerMax) {
+    if (_currentVideoLoadingIndicator && _currentVideoIndex != NSUIntegerMax) {
         CGRect frame = [self frameForPageAtIndex:_currentVideoIndex];
         _currentVideoLoadingIndicator.center = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
     }
