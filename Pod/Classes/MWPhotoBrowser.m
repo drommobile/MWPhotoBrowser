@@ -403,9 +403,9 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     // Autoplay if first is video
     if (!_viewHasAppearedInitially) {
         if (_autoPlayOnAppear) {
-            MWPhoto *photo = [self photoAtIndex:_currentPageIndex];
+            MWPhoto *photo = [self photoAtIndex:self.currentIndex];
             if ([photo respondsToSelector:@selector(isVideo)] && photo.isVideo) {
-                [self playVideoAtIndex:_currentPageIndex];
+                [self playVideoAtIndex:self.currentIndex];
             }
         }
     }
@@ -624,8 +624,27 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 
 #pragma mark - Data
 
+- (NSUInteger)dataIndexFromPageIndex:(NSUInteger)index {
+    NSInteger dataIndex = (NSInteger)index;
+    if (self.cyclicPaging && [self numberOfPhotos] > 1) {
+        dataIndex -= 1;
+        // Fix index of edge images for cyclic paging
+        if (index >= _photos.count) {
+            dataIndex = 0;
+        }
+        if (dataIndex < 0) {
+            dataIndex = MAX(_photos.count - 1, 0);
+        }
+    }
+    return (NSUInteger)dataIndex;
+}
+
+- (NSUInteger)pageIndexFromDataIndex:(NSUInteger)index {
+    return index + (self.cyclicPaging && [self numberOfPhotos] > 1) ? 1 : 0;;
+}
+
 - (NSUInteger)currentIndex {
-    return _currentPageIndex;
+    return [self dataIndexFromPageIndex:_currentPageIndex];
 }
 
 - (void)reloadData {
@@ -644,11 +663,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     }
 
     // Update current page index
-    if (numberOfPhotos > 0) {
-        _currentPageIndex = MAX(0, MIN(_currentPageIndex, numberOfPhotos - 1));
-    } else {
-        _currentPageIndex = 0;
-    }
+    _currentPageIndex = [self pageIndexFromDataIndex:0];
     
     // Update layout
     if ([self isViewLoaded]) {
@@ -671,6 +686,14 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     }
     if (_photoCount == NSNotFound) _photoCount = 0;
     return _photoCount;
+}
+
+- (NSUInteger)numberOfPages {
+    NSUInteger number = [self numberOfPhotos];
+    if (self.cyclicPaging && (number > 1)) {
+        number += 2; //Add edge pages
+    }
+    return number;
 }
 
 - (id<MWPhoto>)photoAtIndex:(NSUInteger)index {
@@ -706,11 +729,12 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 }
 
 - (MWCaptionView *)captionViewForPhotoAtIndex:(NSUInteger)index {
+    NSUInteger dataIndex = [self dataIndexFromPageIndex:index];
     MWCaptionView *captionView = nil;
     if ([_delegate respondsToSelector:@selector(photoBrowser:captionViewForPhotoAtIndex:)]) {
-        captionView = [_delegate photoBrowser:self captionViewForPhotoAtIndex:index];
+        captionView = [_delegate photoBrowser:self captionViewForPhotoAtIndex:dataIndex];
     } else {
-        id <MWPhoto> photo = [self photoAtIndex:index];
+        id <MWPhoto> photo = [self photoAtIndex:dataIndex];
         if ([photo respondsToSelector:@selector(caption)]) {
             if ([photo caption]) captionView = [[MWCaptionView alloc] initWithPhoto:photo];
         }
@@ -754,21 +778,24 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     if (page) {
         // If page is current page then initiate loading of previous and next pages
         NSUInteger pageIndex = page.index;
+        NSUInteger photoIndexToLoad = 0;
         if (_currentPageIndex == pageIndex) {
             if (pageIndex > 0) {
                 // Preload index - 1
-                id <MWPhoto> photo = [self photoAtIndex:pageIndex-1];
+                photoIndexToLoad = [self dataIndexFromPageIndex:pageIndex - 1];
+                id <MWPhoto> photo = [self photoAtIndex:photoIndexToLoad];
                 if (![photo underlyingImage]) {
                     [photo loadUnderlyingImageAndNotify];
-                    MWLog(@"Pre-loading image at index %lu", (unsigned long)pageIndex-1);
+                    MWLog(@"Pre-loading image at index %lu", (unsigned long)photoIndexToLoad);
                 }
             }
-            if (pageIndex < [self numberOfPhotos] - 1) {
+            if (pageIndex < [self numberOfPages] - 1) {
                 // Preload index + 1
-                id <MWPhoto> photo = [self photoAtIndex:pageIndex+1];
+                photoIndexToLoad = [self dataIndexFromPageIndex:pageIndex + 1];
+                id <MWPhoto> photo = [self photoAtIndex:photoIndexToLoad];
                 if (![photo underlyingImage]) {
                     [photo loadUnderlyingImageAndNotify];
-                    MWLog(@"Pre-loading image at index %lu", (unsigned long)pageIndex+1);
+                    MWLog(@"Pre-loading image at index %lu", (unsigned long)photoIndexToLoad);
                 }
             }
         }
@@ -806,15 +833,15 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 	NSInteger iFirstIndex = (NSInteger)floorf((CGRectGetMinX(visibleBounds)+PADDING*2) / CGRectGetWidth(visibleBounds));
 	NSInteger iLastIndex  = (NSInteger)floorf((CGRectGetMaxX(visibleBounds)-PADDING*2-1) / CGRectGetWidth(visibleBounds));
     if (iFirstIndex < 0) iFirstIndex = 0;
-    if (iFirstIndex > [self numberOfPhotos] - 1) iFirstIndex = [self numberOfPhotos] - 1;
+    if (iFirstIndex > [self numberOfPages] - 1) iFirstIndex = [self numberOfPages] - 1;
     if (iLastIndex < 0) iLastIndex = 0;
-    if (iLastIndex > [self numberOfPhotos] - 1) iLastIndex = [self numberOfPhotos] - 1;
-	
+    if (iLastIndex > [self numberOfPages] - 1) iLastIndex = [self numberOfPages] - 1;
+
 	// Recycle no longer needed pages
     NSInteger pageIndex;
 	for (MWZoomingScrollView *page in _visiblePages) {
         pageIndex = page.index;
-		if (pageIndex < (NSUInteger)iFirstIndex || pageIndex > (NSUInteger)iLastIndex) {
+        if (pageIndex < (NSUInteger)iFirstIndex || pageIndex > (NSUInteger)iLastIndex) {
 			[_recycledPages addObject:page];
             [page.captionView removeFromSuperview];
             [page.selectedButton removeFromSuperview];
@@ -880,7 +907,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
                 selectedButton.frame = [self frameForSelectedButton:selectedButton atIndex:index];
                 [_pagingScrollView addSubview:selectedButton];
                 page.selectedButton = selectedButton;
-                selectedButton.selected = [self photoIsSelectedAtIndex:index];
+                selectedButton.selected = [self photoIsSelectedAtIndex:[self dataIndexFromPageIndex:index]];
             }
             
 		}
@@ -898,13 +925,13 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     }
 }
 
-- (BOOL)isDisplayingPageForIndex:(NSUInteger)index {
+- (BOOL)isDisplayingPageForIndex:(NSInteger)index {
 	for (MWZoomingScrollView *page in _visiblePages)
 		if (page.index == index) return YES;
 	return NO;
 }
 
-- (MWZoomingScrollView *)pageDisplayedAtIndex:(NSUInteger)index {
+- (MWZoomingScrollView *)pageDisplayedAtIndex:(NSInteger)index {
 	MWZoomingScrollView *thePage = nil;
 	for (MWZoomingScrollView *page in _visiblePages) {
 		if (page.index == index) {
@@ -924,10 +951,10 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 	return thePage;
 }
 
-- (void)configurePage:(MWZoomingScrollView *)page forIndex:(NSUInteger)index {
+- (void)configurePage:(MWZoomingScrollView *)page forIndex:(NSInteger)index {
 	page.frame = [self frameForPageAtIndex:index];
     page.index = index;
-    page.photo = [self photoAtIndex:index];
+    page.photo = [self photoAtIndex:[self dataIndexFromPageIndex:index]];
 }
 
 - (MWZoomingScrollView *)dequeueRecycledPage {
@@ -942,7 +969,8 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 - (void)didStartViewingPageAtIndex:(NSUInteger)index {
     
     // Handle 0 photos
-    if (![self numberOfPhotos]) {
+    NSUInteger pagesCount = [self numberOfPages];
+    if (pagesCount == 0) {
         // Show controls
         [self setControlsHidden:NO animated:YES permanent:YES];
         return;
@@ -957,30 +985,31 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     NSUInteger i;
     if (index > 0) {
         // Release anything < index - 1
-        for (i = 0; i < index-1; i++) { 
-            id photo = [_photos objectAtIndex:i];
+        for (i = 0; i < index-1; i++) {
+            NSUInteger photoIndex = [self dataIndexFromPageIndex:i];
+            id photo = [_photos objectAtIndex:photoIndex];
             if (photo != [NSNull null]) {
                 [photo unloadUnderlyingImage];
-                [_photos replaceObjectAtIndex:i withObject:[NSNull null]];
-                MWLog(@"Released underlying image at index %lu", (unsigned long)i);
+                [_photos replaceObjectAtIndex:photoIndex withObject:[NSNull null]];
+                MWLog(@"Released underlying image at index %lu", (unsigned long)photoIndex);
             }
         }
     }
-    if (index < [self numberOfPhotos] - 1) {
+    if (index < pagesCount - 1) {
         // Release anything > index + 1
-        for (i = index + 2; i < _photos.count; i++) {
-            id photo = [_photos objectAtIndex:i];
+        for (i = index + 2; i < pagesCount; i++) {
+            NSUInteger photoIndex = [self dataIndexFromPageIndex:i];
+            id photo = [_photos objectAtIndex:photoIndex];
             if (photo != [NSNull null]) {
                 [photo unloadUnderlyingImage];
-                [_photos replaceObjectAtIndex:i withObject:[NSNull null]];
-                MWLog(@"Released underlying image at index %lu", (unsigned long)i);
+                [_photos replaceObjectAtIndex:photoIndex withObject:[NSNull null]];
+                MWLog(@"Released underlying image at index %lu", (unsigned long)photoIndex);
             }
         }
     }
-    
     // Load adjacent images if needed and the photo is already
     // loaded. Also called after photo has been loaded in background
-    id <MWPhoto> currentPhoto = [self photoAtIndex:index];
+    id <MWPhoto> currentPhoto = [self photoAtIndex:self.currentIndex];
     if ([currentPhoto underlyingImage]) {
         // photo loaded so load ajacent now
         [self loadAdjacentPhotosIfNecessary:currentPhoto];
@@ -989,7 +1018,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     // Notify delegate
     if (index != _previousPageIndex) {
         if ([_delegate respondsToSelector:@selector(photoBrowser:didDisplayPhotoAtIndex:)])
-            [_delegate photoBrowser:self didDisplayPhotoAtIndex:index];
+            [_delegate photoBrowser:self didDisplayPhotoAtIndex:self.currentIndex];
         _previousPageIndex = index;
     }
     
@@ -1007,7 +1036,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     return CGRectIntegral(frame);
 }
 
-- (CGRect)frameForPageAtIndex:(NSUInteger)index {
+- (CGRect)frameForPageAtIndex:(NSInteger)index {
     // We have to use our paging scroll view's bounds, not frame, to calculate the page placement. When the device is in
     // landscape orientation, the frame will still be in portrait because the pagingScrollView is the root view controller's
     // view, so its frame is in window coordinate space, which is never rotated. Its bounds, however, will be in landscape
@@ -1022,7 +1051,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 - (CGSize)contentSizeForPagingScrollView {
     // We have to use the paging scroll view's bounds to calculate the contentSize, for the same reason outlined above.
     CGRect bounds = _pagingScrollView.bounds;
-    return CGSizeMake(bounds.size.width * [self numberOfPhotos], bounds.size.height);
+    return CGSizeMake(bounds.size.width * [self numberOfPages], bounds.size.height);
 }
 
 - (CGPoint)contentOffsetForPageAtIndex:(NSUInteger)index {
@@ -1050,7 +1079,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     return CGRectIntegral(captionFrame);
 }
 
-- (CGRect)frameForSelectedButton:(UIButton *)selectedButton atIndex:(NSUInteger)index {
+- (CGRect)frameForSelectedButton:(UIButton *)selectedButton atIndex:(NSInteger)index {
     CGRect pageFrame = [self frameForPageAtIndex:index];
     CGFloat padding = 20;
     CGFloat yOffset = 0;
@@ -1065,7 +1094,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     return CGRectIntegral(selectedButtonFrame);
 }
 
-- (CGRect)frameForPlayButton:(UIButton *)playButton atIndex:(NSUInteger)index {
+- (CGRect)frameForPlayButton:(UIButton *)playButton atIndex:(NSInteger)index {
     CGRect pageFrame = [self frameForPageAtIndex:index];
     return CGRectMake(floorf(CGRectGetMidX(pageFrame) - playButton.frame.size.width / 2),
                       floorf(CGRectGetMidY(pageFrame) - playButton.frame.size.height / 2),
@@ -1100,8 +1129,8 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 	CGRect visibleBounds = _pagingScrollView.bounds;
 	NSInteger index = (NSInteger)(floorf(CGRectGetMidX(visibleBounds) / CGRectGetWidth(visibleBounds)));
     if (index < 0) index = 0;
-	if (index > [self numberOfPhotos] - 1) index = [self numberOfPhotos] - 1;
-	NSUInteger previousCurrentPage = _currentPageIndex;
+    if (index > [self numberOfPages] - 1) index = [self numberOfPages] - 1;
+    NSUInteger previousCurrentPage = _currentPageIndex;
 	_currentPageIndex = index;
 	if (_currentPageIndex != previousCurrentPage) {
         MWPhotoBrowserSwipeDirection swipeDirection = MWPhotoBrowserSwipeDirectionUndefined;
@@ -1151,9 +1180,9 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
         }
     } else if (numberOfPhotos > 1) {
         if ([_delegate respondsToSelector:@selector(photoBrowser:titleForPhotoAtIndex:)]) {
-            self.title = [_delegate photoBrowser:self titleForPhotoAtIndex:_currentPageIndex];
+            self.title = [_delegate photoBrowser:self titleForPhotoAtIndex:self.currentIndex];
         } else {
-            self.title = [NSString stringWithFormat:@"%lu %@ %lu", (unsigned long)(_currentPageIndex+1), NSLocalizedString(@"of", @"Used in the context: 'Showing 1 of 3 items'"), (unsigned long)numberOfPhotos];
+            self.title = [NSString stringWithFormat:@"%lu %@ %lu", (unsigned long)(self.currentIndex+1), NSLocalizedString(@"of", @"Used in the context: 'Showing 1 of 3 items'"), (unsigned long)numberOfPhotos];
         }
 	} else {
 		self.title = nil;
@@ -1161,10 +1190,10 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 	
 	// Buttons
 	_previousButton.enabled = (_currentPageIndex > 0);
-	_nextButton.enabled = (_currentPageIndex < numberOfPhotos - 1);
+	_nextButton.enabled = (_currentPageIndex < [self numberOfPages] - 1);
     
     // Disable action button if there is no image or it's a video
-    MWPhoto *photo = [self photoAtIndex:_currentPageIndex];
+    MWPhoto *photo = [self photoAtIndex:self.currentIndex];
     if ([photo underlyingImage] == nil || ([photo respondsToSelector:@selector(isVideo)] && photo.isVideo)) {
         _actionButton.enabled = NO;
         _actionButton.tintColor = [UIColor clearColor]; // Tint to hide button
@@ -1175,10 +1204,10 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 	
 }
 
-- (void)jumpToPageAtIndex:(NSUInteger)index animated:(BOOL)animated {
+- (void)jumpToPageAtIndex:(NSInteger)index animated:(BOOL)animated {
 	
 	// Change page
-	if (index < [self numberOfPhotos]) {
+	if (index < [self numberOfPages]) {
 		CGRect pageFrame = [self frameForPageAtIndex:index];
         [_pagingScrollView setContentOffset:CGPointMake(pageFrame.origin.x - PADDING, 0) animated:animated];
 		[self updateNavigation];
@@ -1212,7 +1241,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     NSUInteger index = NSUIntegerMax;
     for (MWZoomingScrollView *page in _visiblePages) {
         if (page.selectedButton == selectedButton) {
-            index = page.index;
+            index = [self dataIndexFromPageIndex:page.index];
             break;
         }
     }
@@ -1223,19 +1252,19 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 
 - (void)playButtonTapped:(id)sender {
     // Ignore if we're already playing a video
-    if (_currentVideoIndex != NSUIntegerMax) {
+    if (_currentVideoIndex != NSIntegerMax) {
         return;
     }
-    NSUInteger index = [self indexForPlayButton:sender];
-    if (index != NSUIntegerMax) {
+    NSInteger index = [self indexForPlayButton:sender];
+    if (index != NSIntegerMax) {
         if (!_currentVideoPlayerViewController) {
-            [self playVideoAtIndex:index];
+            [self playVideoAtIndex:[self dataIndexFromPageIndex:index]];
         }
     }
 }
 
-- (NSUInteger)indexForPlayButton:(UIView *)playButton {
-    NSUInteger index = NSUIntegerMax;
+- (NSInteger)indexForPlayButton:(UIView *)playButton {
+    NSInteger index = NSIntegerMax;
     for (MWZoomingScrollView *page in _visiblePages) {
         if (page.playButton == playButton) {
             index = page.index;
@@ -1269,7 +1298,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
                 if (url) {
                     [weakSelf _playVideo:url atPhotoIndex:index];
                 } else {
-                    [weakSelf setVideoLoadingIndicatorVisible:NO atPageIndex:index];
+                    [weakSelf setVideoLoadingIndicatorVisible:NO atPageIndex:[self pageIndexFromDataIndex:index]];
                 }
             });
         }];
@@ -1375,7 +1404,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 }
 
 - (void)positionVideoLoadingIndicator {
-    if (_currentVideoLoadingIndicator && _currentVideoIndex != NSUIntegerMax) {
+    if (_currentVideoLoadingIndicator && _currentVideoIndex != NSIntegerMax) {
         CGRect frame = [self frameForPageAtIndex:_currentVideoIndex];
         _currentVideoLoadingIndicator.center = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
     }
@@ -1623,11 +1652,11 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
         index = 0;
     } else {
         if (index >= photoCount)
-            index = [self numberOfPhotos]-1;
+            index = photoCount - 1;
     }
-    _currentPageIndex = index;
+    _currentPageIndex = [self pageIndexFromDataIndex:index];
 	if ([self isViewLoaded]) {
-        [self jumpToPageAtIndex:index animated:NO];
+        [self jumpToPageAtIndex:_currentPageIndex animated:NO];
         if (!_viewIsActive)
             [self tilePages]; // Force tiling if view is not visible
     }
@@ -1681,14 +1710,14 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 - (void)actionButtonPressed:(id)sender {
 
     // Only react when image has loaded
-    id <MWPhoto> photo = [self photoAtIndex:_currentPageIndex];
+    id <MWPhoto> photo = [self photoAtIndex:self.currentIndex];
     if ([self numberOfPhotos] > 0 && [photo underlyingImage]) {
         
         // If they have defined a delegate method then just message them
         if ([self.delegate respondsToSelector:@selector(photoBrowser:actionButtonPressedForPhotoAtIndex:)]) {
             
             // Let delegate handle things
-            [self.delegate photoBrowser:self actionButtonPressedForPhotoAtIndex:_currentPageIndex];
+            [self.delegate photoBrowser:self actionButtonPressedForPhotoAtIndex:self.currentIndex];
             
         } else {
             
