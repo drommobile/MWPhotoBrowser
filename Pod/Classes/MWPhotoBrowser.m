@@ -664,7 +664,11 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     }
 
     // Update current page index
-    _currentPageIndex = [self pageIndexFromDataIndex:0];
+    if (numberOfPhotos > 0) {
+        _currentPageIndex = [self pageIndexFromDataIndex:MAX(0, MIN(self.currentIndex, numberOfPhotos - 1))];
+    } else {
+        _currentPageIndex = 0;
+    }
     
     // Update layout
     if ([self isViewLoaded]) {
