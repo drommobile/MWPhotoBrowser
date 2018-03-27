@@ -1195,8 +1195,8 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 	}
 	
 	// Buttons
-	_previousButton.enabled = (_currentPageIndex > 0);
-	_nextButton.enabled = (_currentPageIndex < [self numberOfPages] - 1);
+	_previousButton.enabled = (_currentPageIndex > 0) || self.cyclicPaging;
+	_nextButton.enabled = (_currentPageIndex < [self numberOfPages] - 1) || self.cyclicPaging;
     
     // Disable action button if there is no image or it's a video
     MWPhoto *photo = [self photoAtIndex:self.currentIndex];
