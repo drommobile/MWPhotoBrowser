@@ -730,12 +730,12 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 }
 
 - (MWCaptionView *)captionViewForPhotoAtIndex:(NSUInteger)index {
-    NSUInteger dataIndex = [self dataIndexFromPageIndex:index];
+    NSUInteger photoIndex = [self dataIndexFromPageIndex:index];
     MWCaptionView *captionView = nil;
     if ([_delegate respondsToSelector:@selector(photoBrowser:captionViewForPhotoAtIndex:)]) {
-        captionView = [_delegate photoBrowser:self captionViewForPhotoAtIndex:dataIndex];
+        captionView = [_delegate photoBrowser:self captionViewForPhotoAtIndex:photoIndex];
     } else {
-        id <MWPhoto> photo = [self photoAtIndex:dataIndex];
+        id <MWPhoto> photo = [self photoAtIndex:photoIndex];
         if ([photo respondsToSelector:@selector(caption)]) {
             if ([photo caption]) captionView = [[MWCaptionView alloc] initWithPhoto:photo];
         }
@@ -926,13 +926,13 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     }
 }
 
-- (BOOL)isDisplayingPageForIndex:(NSInteger)index {
+- (BOOL)isDisplayingPageForIndex:(NSUInteger)index {
 	for (MWZoomingScrollView *page in _visiblePages)
 		if (page.index == index) return YES;
 	return NO;
 }
 
-- (MWZoomingScrollView *)pageDisplayedAtIndex:(NSInteger)index {
+- (MWZoomingScrollView *)pageDisplayedAtIndex:(NSUInteger)index {
 	MWZoomingScrollView *thePage = nil;
 	for (MWZoomingScrollView *page in _visiblePages) {
 		if (page.index == index) {
@@ -952,7 +952,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 	return thePage;
 }
 
-- (void)configurePage:(MWZoomingScrollView *)page forIndex:(NSInteger)index {
+- (void)configurePage:(MWZoomingScrollView *)page forIndex:(NSUInteger)index {
 	page.frame = [self frameForPageAtIndex:index];
     page.index = index;
     page.photo = [self photoAtIndex:[self dataIndexFromPageIndex:index]];
@@ -1008,9 +1008,10 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
             }
         }
     }
+    NSUInteger photoIndex = [self dataIndexFromPageIndex:index];
     // Load adjacent images if needed and the photo is already
     // loaded. Also called after photo has been loaded in background
-    id <MWPhoto> currentPhoto = [self photoAtIndex:self.currentIndex];
+    id <MWPhoto> currentPhoto = [self photoAtIndex:photoIndex];
     if ([currentPhoto underlyingImage]) {
         // photo loaded so load ajacent now
         [self loadAdjacentPhotosIfNecessary:currentPhoto];
@@ -1019,7 +1020,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     // Notify delegate
     if (index != _previousPageIndex) {
         if ([_delegate respondsToSelector:@selector(photoBrowser:didDisplayPhotoAtIndex:)])
-            [_delegate photoBrowser:self didDisplayPhotoAtIndex:self.currentIndex];
+            [_delegate photoBrowser:self didDisplayPhotoAtIndex:photoIndex];
         _previousPageIndex = index;
     }
     
@@ -1037,7 +1038,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     return CGRectIntegral(frame);
 }
 
-- (CGRect)frameForPageAtIndex:(NSInteger)index {
+- (CGRect)frameForPageAtIndex:(NSUInteger)index {
     // We have to use our paging scroll view's bounds, not frame, to calculate the page placement. When the device is in
     // landscape orientation, the frame will still be in portrait because the pagingScrollView is the root view controller's
     // view, so its frame is in window coordinate space, which is never rotated. Its bounds, however, will be in landscape
@@ -1080,7 +1081,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     return CGRectIntegral(captionFrame);
 }
 
-- (CGRect)frameForSelectedButton:(UIButton *)selectedButton atIndex:(NSInteger)index {
+- (CGRect)frameForSelectedButton:(UIButton *)selectedButton atIndex:(NSUInteger)index {
     CGRect pageFrame = [self frameForPageAtIndex:index];
     CGFloat padding = 20;
     CGFloat yOffset = 0;
@@ -1095,7 +1096,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     return CGRectIntegral(selectedButtonFrame);
 }
 
-- (CGRect)frameForPlayButton:(UIButton *)playButton atIndex:(NSInteger)index {
+- (CGRect)frameForPlayButton:(UIButton *)playButton atIndex:(NSUInteger)index {
     CGRect pageFrame = [self frameForPageAtIndex:index];
     return CGRectMake(floorf(CGRectGetMidX(pageFrame) - playButton.frame.size.width / 2),
                       floorf(CGRectGetMidY(pageFrame) - playButton.frame.size.height / 2),
@@ -1210,7 +1211,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 	
 }
 
-- (void)jumpToPageAtIndex:(NSInteger)index animated:(BOOL)animated {
+- (void)jumpToPageAtIndex:(NSUInteger)index animated:(BOOL)animated {
     NSUInteger pageCount = [self numberOfPages];
 
     // Change page
