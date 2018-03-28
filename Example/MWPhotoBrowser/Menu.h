@@ -13,6 +13,7 @@
 @interface Menu : UITableViewController <MWPhotoBrowserDelegate> {
     UISegmentedControl *_segmentedControl;
     NSMutableArray *_selections;
+    BOOL _cyclicMode;
 }
 
 @property (nonatomic, strong) NSMutableArray *photos;

@@ -32,6 +32,10 @@
         self.navigationItem.rightBarButtonItem = item;
         self.navigationItem.backBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Back" style:UIBarButtonItemStylePlain target:nil action:nil];
 
+        UIBarButtonItem *leftItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemRefresh target:self action:@selector(didTapCyclicModeButton)];
+        self.navigationItem.leftBarButtonItem = leftItem;
+        [self updateCyclicModeButton];
+
         [self loadAssets];
         
     }
@@ -42,6 +46,14 @@
     [self.tableView reloadData];
 }
 
+- (void)didTapCyclicModeButton {
+    _cyclicMode = !_cyclicMode;
+    [self updateCyclicModeButton];
+}
+
+- (void)updateCyclicModeButton {
+    self.navigationItem.leftBarButtonItem.tintColor = (_cyclicMode) ? self.view.tintColor : [UIColor grayColor];
+}
 
 #pragma mark -
 #pragma mark View
@@ -1123,6 +1135,7 @@
     browser.startOnGrid = startOnGrid;
     browser.enableSwipeToDismiss = NO;
     browser.autoPlayOnAppear = autoPlayOnAppear;
+    browser.cyclicPaging = _cyclicMode;
     [browser setCurrentPhotoIndex:0];
     
     // Test custom selection images
