@@ -1350,7 +1350,15 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     
     _currentVideoPlayerViewController = [AVPlayerViewController new];
     _currentVideoPlayerViewController.player = [AVPlayer playerWithURL:videoURL];
-    _currentVideoPlayerViewController.delegate = self;
+#if __has_builtin(__builtin_available)
+    if (@available(iOS 9.0, *)) {
+        _currentVideoPlayerViewController.delegate = self;
+    }
+#else
+    if (SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"9")) {
+        _currentVideoPlayerViewController.delegate = self;
+    }
+#endif
     
     _currentVideoPlayerViewController.videoGravity = AVLayerVideoGravityResizeAspect;
     _currentVideoPlayerViewController.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
