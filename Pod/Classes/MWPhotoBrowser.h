@@ -26,6 +26,12 @@ typedef NS_ENUM(NSUInteger, MWPhotoBrowserSwipeDirection) {
     MWPhotoBrowserSwipeDirectionDown
 };
 
+typedef NS_ENUM(NSUInteger, MWPhotoBrowserScaleType) {
+    MWPhotoBrowserScaleTypeCenter,
+    MWPhotoBrowserScaleTypeAspectFill,
+    MWPhotoBrowserScaleTypeAspectFit
+};
+
 @class MWPhotoBrowser;
 
 @protocol MWPhotoBrowserDelegate <NSObject>
@@ -50,7 +56,7 @@ typedef NS_ENUM(NSUInteger, MWPhotoBrowserSwipeDirection) {
 @interface MWPhotoBrowser : UIViewController <UIScrollViewDelegate, UIActionSheetDelegate>
 
 @property (nonatomic, weak) IBOutlet id<MWPhotoBrowserDelegate> delegate;
-@property (nonatomic) BOOL zoomPhotosToFill;
+@property (nonatomic) MWPhotoBrowserScaleType scaleType;
 @property (nonatomic) BOOL displayNavArrows;
 @property (nonatomic) BOOL displayActionButton;
 @property (nonatomic) BOOL displaySelectionButtons;

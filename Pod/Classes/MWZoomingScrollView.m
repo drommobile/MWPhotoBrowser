@@ -223,7 +223,7 @@
 
 - (CGFloat)initialZoomScaleWithMinScale {
     CGFloat zoomScale = self.minimumZoomScale;
-    if (_photoImageView && _photoBrowser.zoomPhotosToFill) {
+    if (_photoImageView && _photoBrowser.scaleType != MWPhotoBrowserScaleTypeCenter) {
         // Zoom image to fill if the aspect ratios are fairly similar
         CGSize boundsSize = self.bounds.size;
         CGSize imageSize = _photoImageView.image.size;
@@ -231,11 +231,10 @@
         CGFloat imageAR = imageSize.width / imageSize.height;
         CGFloat xScale = boundsSize.width / imageSize.width;    // the scale needed to perfectly fit the image width-wise
         CGFloat yScale = boundsSize.height / imageSize.height;  // the scale needed to perfectly fit the image height-wise
-        // Zooms standard portrait images on a 3.5in screen but not on a 4in screen.
-        if (ABS(boundsAR - imageAR) < 0.17) {
+        if (_photoBrowser.scaleType == MWPhotoBrowserScaleTypeAspectFit) {
+            zoomScale = MIN(xScale, yScale);
+        } else {
             zoomScale = MAX(xScale, yScale);
-            // Ensure we don't zoom in or out too far, just in case
-            zoomScale = MIN(MAX(self.minimumZoomScale, zoomScale), self.maximumZoomScale);
         }
     }
     return zoomScale;
@@ -263,11 +262,14 @@
     CGFloat yScale = boundsSize.height / imageSize.height;  // the scale needed to perfectly fit the image height-wise
     CGFloat minScale = MIN(xScale, yScale);                 // use minimum of these to allow the image to become fully visible
     
+    // Initial zoom
+    CGFloat zoomScale = [self initialZoomScaleWithMinScale];
+    
     // Calculate Max
-    CGFloat maxScale = 3;
+    CGFloat maxScale = zoomScale * 3;
     if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
         // Let them go a bit bigger on a bigger screen!
-        maxScale = 4;
+        maxScale = zoomScale * 4;
     }
     
     // Image is smaller than screen so no zooming!
@@ -278,16 +280,17 @@
     // Set min/max zoom
     self.maximumZoomScale = maxScale;
     self.minimumZoomScale = minScale;
-    
-    // Initial zoom
-    self.zoomScale = [self initialZoomScaleWithMinScale];
+    self.zoomScale = zoomScale;
     
     // If we're zooming to fill then centralise
     if (self.zoomScale != minScale) {
         
         // Centralise
-        self.contentOffset = CGPointMake((imageSize.width * self.zoomScale - boundsSize.width) / 2.0,
-                                         (imageSize.height * self.zoomScale - boundsSize.height) / 2.0);
+        CGPoint contentOffset = CGPointMake((imageSize.width * self.zoomScale - boundsSize.width) / 2.0,
+                                            (imageSize.height * self.zoomScale - boundsSize.height) / 2.0);
+        contentOffset.x = MAX(0, contentOffset.x);
+        contentOffset.y = MAX(0, contentOffset.y);
+        self.contentOffset = contentOffset;
 
     }
     
