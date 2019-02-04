@@ -224,7 +224,19 @@
 - (CGFloat)initialZoomScaleWithMinScale {
     CGFloat zoomScale = self.minimumZoomScale;
     if (_photoImageView.image) {
-        zoomScale = [self defaultZoomScale];
+        if (_photoBrowser.scaleType == MWPhotoBrowserScaleTypeDefault && _photoBrowser.zoomPhotosToFill) {
+            CGSize boundsSize = self.bounds.size;
+            CGSize imageSize = _photoImageView.image.size;
+            
+            CGFloat boundsAR = boundsSize.width / boundsSize.height;
+            CGFloat imageAR = imageSize.width / imageSize.height;
+            if (ABS(boundsAR - imageAR) < 0.17) {
+                zoomScale = [self defaultZoomScale];
+                zoomScale = MIN(MAX(self.minimumZoomScale, zoomScale), self.maximumZoomScale);
+            }
+        } else if (_photoBrowser.scaleType != MWPhotoBrowserScaleTypeDefault) {
+            zoomScale = [self defaultZoomScale];
+        }
     }
     return zoomScale;
 }
@@ -235,7 +247,7 @@
     CGSize imageSize = _photoImageView.image.size;
     CGFloat xScale = boundsSize.width / imageSize.width;    // the scale needed to perfectly fit the image width-wise
     CGFloat yScale = boundsSize.height / imageSize.height;  // the scale needed to perfectly fit the image height-wise
-    if (_photoBrowser.scaleType == MWPhotoBrowserScaleTypeAspectFill) {
+    if (_photoBrowser.scaleType == MWPhotoBrowserScaleTypeAspectFill || _photoBrowser.scaleType == MWPhotoBrowserScaleTypeDefault) {
         zoomScale = MAX(xScale, yScale);
     } else {
         zoomScale = MIN(xScale, yScale);
@@ -250,7 +262,6 @@
 }
 
 - (void)setMaxMinZoomScalesForCurrentBounds {
-    
     // Bail if no image
     if (_photoImageView.image == nil) {
         self.maximumZoomScale = 1.f;
@@ -262,27 +273,66 @@
     // Reset position
     _photoImageView.frame = CGRectMake(0, 0, _photoImageView.frame.size.width, _photoImageView.frame.size.height);
     
-    // Set min zoom
-    self.minimumZoomScale = [self defaultZoomScale];
     
     // Initial zoom
-    CGFloat zoomScale = self.minimumZoomScale;
+    CGFloat minScale;
+    CGFloat zoomScale;
+    CGFloat maxScale;
     
-    // Calculate Max
-    CGFloat maxScale = zoomScale * 3;
-    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
-        // Let them go a bit bigger on a bigger screen!
-        maxScale = zoomScale * 4;
+    // Set zoom
+    if (_photoBrowser.scaleType == MWPhotoBrowserScaleTypeDefault) {
+        // Reset
+        self.maximumZoomScale = 1;
+        self.minimumZoomScale = 1;
+        self.zoomScale = 1;
+        
+        // Sizes
+        CGSize boundsSize = self.bounds.size;
+        CGSize imageSize = _photoImageView.image.size;
+        
+        // Calculate Min
+        CGFloat xScale = boundsSize.width / imageSize.width;    // the scale needed to perfectly fit the image width-wise
+        CGFloat yScale = boundsSize.height / imageSize.height;  // the scale needed to perfectly fit the image height-wise
+        minScale = MIN(xScale, yScale);                         // use minimum of these to allow the image to become fully visible
+        
+        // Calculate Max
+        maxScale = 3;
+        if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
+            // Let them go a bit bigger on a bigger screen!
+            maxScale = 4;
+        }
+        
+        // Image is smaller than screen so no zooming!
+        if (xScale >= 1 && yScale >= 1) {
+            minScale = 1.0;
+        }
+        
+        // Set min/max zoom
+        self.maximumZoomScale = maxScale;
+        self.minimumZoomScale = minScale;
+        
+        zoomScale = [self initialZoomScaleWithMinScale];
+    } else {
+        // Set min zoom
+        zoomScale = [self defaultZoomScale];
+        self.minimumZoomScale = zoomScale;
+        
+        // Calculate Max
+        maxScale = zoomScale * 3;
+        if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
+            // Let them go a bit bigger on a bigger screen!
+            maxScale = zoomScale * 4;
+        }
+        
+        // Set max zoom
+        self.maximumZoomScale = maxScale;
     }
-    
-    // Set max zoom
-    self.maximumZoomScale = maxScale;
     
     // Set zoom
     self.zoomScale = zoomScale;
     
     // If we're zooming to fill then centralise
-    if (_photoBrowser.scaleType == MWPhotoBrowserScaleTypeAspectFill) {
+    if (_photoBrowser.scaleType == MWPhotoBrowserScaleTypeAspectFill || (_photoBrowser.scaleType == MWPhotoBrowserScaleTypeDefault && self.zoomScale != minScale)) {
         CGSize boundsSize = self.bounds.size;
         CGSize imageSize = _photoImageView.image.size;
         // Centralise
