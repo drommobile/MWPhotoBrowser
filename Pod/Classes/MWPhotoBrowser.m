@@ -600,7 +600,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     
     [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext>  _Nonnull context) {
         // Perform layout
-        _currentPageIndex = _pageIndexBeforeRotation;
+        self->_currentPageIndex = self->_pageIndexBeforeRotation;
         
         // Delay control holding
         [self hideControlsAfterDelay];
@@ -608,7 +608,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
         // Layout
         [self layoutVisiblePages];
     } completion:^(id<UIViewControllerTransitionCoordinatorContext>  _Nonnull context) {
-        _rotating = NO;
+        self->_rotating = NO;
         // Ensure nav bar isn't re-displayed
         if ([self areControlsHidden]) {
             self.navigationController.navigationBarHidden = NO;
