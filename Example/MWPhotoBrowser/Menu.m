@@ -1130,7 +1130,8 @@
     browser.displayNavArrows = displayNavArrows;
     browser.displaySelectionButtons = displaySelectionButtons;
     browser.alwaysShowControls = displaySelectionButtons;
-    browser.zoomPhotosToFill = YES;
+    browser.scaleType = MWPhotoBrowserScaleTypeAspectFill;
+    browser.zoomPhotosToFill = NO;
     browser.enableGrid = enableGrid;
     browser.startOnGrid = startOnGrid;
     browser.enableSwipeToDismiss = NO;
